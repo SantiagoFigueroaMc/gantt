@@ -139,10 +139,26 @@
             return date.toISOString().split('T')[0];
         }
 
-        function addDays(dateStr, days) {
+        // --- NUEVA FUNCIÓN: Suma solo días hábiles ---
+        function addBusinessDays(dateStr, days) {
             if (!dateStr) return "";
+            // Forzamos la hora para evitar problemas de zona horaria
             var date = new Date(dateStr + "T00:00:00");
-            date.setDate(date.getDate() + parseInt(days || 0, 10));
+            var remainingDays = parseInt(days || 0, 10);
+
+            // Mientras queden días por sumar...
+            while (remainingDays > 0) {
+                // Avanzamos un día natural
+                date.setDate(date.getDate() + 1);
+                
+                var dayOfWeek = date.getDay();
+                
+                // 0 = Domingo, 6 = Sábado.
+                // Si NO es fin de semana, descontamos 1 de la duración pendiente.
+                if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+                    remainingDays--;
+                }
+            }
             return formatDate(date);
         }
 
@@ -166,10 +182,14 @@
         }
 
         function getEndDate(task) {
+            // LÓGICA ACTUALIZADA
             var start = task.start_date || getStartDate(task);
             var duration = parseInt(task.duration, 10);
+            
             if (isNaN(duration) || duration < 1) duration = 1;
-            return addDays(start, duration);
+            
+            // Usamos la nueva función en lugar de addDays
+            return addBusinessDays(start, duration); 
         }
 
         function updateSuccessorTasks(parentTask) {
@@ -180,7 +200,6 @@
                 }
             });
         }
-
         function ensureRowPlaceholder() {
             var lastTask = data[data.length - 1];
             if (!lastTask || lastTask.title !== "") {
@@ -193,14 +212,12 @@
             renderTable();
         }
 
-        // CONTROLADOR MODIFICADO: Cambiado a onBlur y simplificado
         function onInputBlur(e, index, field) {
             var value = e.target.value;
             var task = data[index];
 
             if (!task) return;
 
-            // Evita re-renderizar si el valor no cambió realmente
             if (task[field] === value) return;
 
             task[field] = value;
@@ -218,7 +235,6 @@
             renderTable();
         }
 
-        // RENDERIZADO MODIFICADO: Ahora usa onblur en vez de onchange
         function renderTable() {
             if (!tbody) return;
             tbody.innerHTML = "";
@@ -242,7 +258,7 @@
                 </td>
                 <td>
                     <span>${rowContent.start_date || ''}</span>
-                    <input type="date" value="${rowContent.start_date || ''}" onblur="onInputBlur(event, ${index}, 'start_date')">
+                    <input type="date" value="${rowContent.start_date || ''}" onblur="onInputBlur(event, ${index}, 'start_date')" ${rowContent.predecessor ? 'disabled' : ''}>
                 </td>
                 <td>
                     <span>${rowContent.duration || '1'}</span>
