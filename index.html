@@ -181,6 +181,13 @@
             });
         }
 
+        function ensureRowPlaceholder() {
+            var lastTask = data[data.length - 1];
+            if (!lastTask || lastTask.title !== "") {
+                data.push({ id: generateId(), title: "", duration: "1" });
+            }
+        }
+
         // Controladores de eventos e Inputs
         function onFilterChange(e) {
             currentFilter = e.target.value.toLowerCase();
@@ -204,6 +211,9 @@
             if (index === data.length - 1 && task.title !== "") {
                 ensureRowPlaceholder();
             }
+
+            // LLAMADA: Guardar cambios inmediatamente al escribir
+            saveToLocalStorage();
 
             renderTable();
 
@@ -248,37 +258,47 @@
                 </td>
                 <td>
                     <span>${rowContent.start_date || ''}</span>
-                    <input oninput="onInputChange(event, ${index}, 'start_date')" type="date" value="${rowContent.start_date || ''}" ${rowContent.predecessor ? 'disabled' : ''}/>
+                    <input type="date" oninput="onInputChange(event, ${index}, 'start_date')" value="${rowContent.start_date || ''}"/>
                 </td>
                 <td>
-                    <span>${rowContent.duration || '1'}</span>
-                    <input oninput="onInputChange(event, ${index}, 'duration')" type="number" min="1" value="${rowContent.duration || '1'}"/>
+                    <span>${rowContent.duration || ''}</span>
+                    <input type="number" oninput="onInputChange(event, ${index}, 'duration')" value="${rowContent.duration || ''}"/>
                 </td>
                 <td>
                     <span>${rowContent.end_date || ''}</span>
-                    <input type="date" value="${rowContent.end_date || ''}" disabled />
+                    <input type="date" readonly value="${rowContent.end_date || ''}"/>
                 </td>
                 <td>
                     <span>${rowContent.predecessor || ''}</span>
-                    <input oninput="onInputChange(event, ${index}, 'predecessor')" placeholder="Ej: 1" value="${rowContent.predecessor || ''}"/>
+                    <input oninput="onInputChange(event, ${index}, 'predecessor')" placeholder="Predecessor" value="${rowContent.predecessor || ''}"/>
                 </td>
                 `;
                 tbody.appendChild(row);
             });
         }
 
-        // Cambiado de "addRowPlaceholder" para evitar duplicaciones infinitas en cada renderizado
-        function ensureRowPlaceholder() {
-            var lastTask = data[data.length - 1];
-            if (lastTask && lastTask.title === "") return; // Ya existe una fila borrador vacía
+        // --- INICIALIZACIÓN DE LA APLICACIÓN ---
+        // LLAMADA: Cargar datos guardados antes de renderizar la primera vez
+        loadFromLocalStorage();
+        renderTable();
+    </script>
 
-            data.push({
-                id: generateId(),
-                title: "",
-                start_date: formatDate(new Date()),
-                duration: "1",
-                predecessor: ""
+    <script>
+        // --- FUNCIONES DE LOCAL STORAGE ---
+        function saveToLocalStorage() {
+            // Guardamos todo el arreglo 'data', excluyendo la fila borrador vacía del final
+            var dataToSave = data.filter((task, index) => {
+                if (index === data.length - 1 && !task.id && !task.title) return false;
+                return true;
             });
+            localStorage.setItem("gantt_data", JSON.stringify(dataToSave));
+        }
+
+        function loadFromLocalStorage() {
+            var savedData = localStorage.getItem("gantt_data");
+            if (savedData) {
+                data = JSON.parse(savedData);
+            }
         }
     </script>
 
