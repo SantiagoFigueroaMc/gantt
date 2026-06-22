@@ -5,56 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gantt</title>
-    <style>
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        th,
-        td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #f4f4f4;
-        }
-
-        /* Control de visualización mediante CSS */
-        td input {
-            display: none;
-            width: 100%;
-            box-sizing: border-box;
-            padding: 4px;
-        }
-
-        td span {
-            display: inline-block;
-            width: 100%;
-            min-height: 1.2em;
-        }
-
-        /* Cuando tbody tiene la clase editable, muestra inputs y oculta spans */
-        tbody.editable td input {
-            display: block;
-        }
-
-        tbody.editable td span {
-            display: none;
-        }
-    </style>
 
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="gantt.css">
+    <link rel="stylesheet" href="file-dropzone.css">
 </head>
 
 <body>
     <div class="gantt-container">
         <!-- Columna estática para los nombres de las tareas (Izquierda) -->
         <div class="gantt-tasks" id="ganttTasks">
-            <div class="gantt-tasks-header">Tarea</div>
+            
         </div>
 
         <!-- Área con scroll para la línea de tiempo gráfica (Derecha) -->
@@ -63,9 +24,19 @@
             <div class="gantt-timeline-body" id="timelineBody"></div>
         </div>
     </div>
+
+    <div class="file-dropzone hidden">
+        <h2>Carga un archivo json</h2>
+        <input type="file" name="gantt-file" id="gantt-file" accept="json">
+        <p>o agrega tareas en la tabla de abajo</p>
+    </div>
+
+    <div style="padding: 5px;"></div>
+
     <header>
         <button onclick="toggleEdit()">Editar</button>
         <button onclick="copyToClipboard()">Copiar</button>
+        <button onclick="donwloadJson()">Descargar JSON</button>
     </header>
     <table>
         <thead>
@@ -89,18 +60,91 @@
     <script>
         var localData = localStorage.getItem("gantt_data");
 
-        var data = localData ? JSON.parse(localData) : [
-            { id: "1", title: "Buscar tags en Adobe", start_date: "2026-07-15", duration: "2" },
-            { id: "2", title: "Buscar tags en GTM", predecessor: "1", duration: "3" },
-        ];
+        var data = localData ? JSON.parse(localData) : [];
 
+        var ganttContainer = document.querySelector("div.gantt-container");
+        var fileDropzoneContainer = document.querySelector("div.file-dropzone");
         var tbody = document.querySelector("tbody");
+
         var currentFilter = "";
 
         function saveToLocalStorage() {
-            localStorage.setItem("gantt_data", JSON.stringify(data));
+            localStorage.setItem("gantt_data", JSON.stringify(data.filter(d=>d.title.trim()!="")));
+        }
+    </script>
+
+    <script src="script.js"></script>
+
+    <script>
+        function toggleFileInput(){
+            var showDropZone = data.filter(d=>d.title.trim()!="").length == 0;
+            ganttContainer.classList.toggle("hidden", showDropZone);
+            fileDropzoneContainer.classList.toggle("hidden", !showDropZone);
+        }
+    </script>
+
+    <script>
+                function onFileInput(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    // Parsea el contenido JSON del archivo
+                    const parsedData = JSON.parse(event.target.result);
+                    
+                    if (Array.isArray(parsedData)) {
+                        // Filtra filas vacías que puedan venir en el archivo
+                        data = parsedData.filter(d => d.title && d.title.trim() !== "");
+                        
+                        // Si está en modo edición, asegura la fila borrador al final
+                        if (isEditable()) {
+                            ensureRowPlaceholder();
+                        }
+
+                        // Guarda en LocalStorage y refresca la interfaz completa
+                        saveToLocalStorage();
+                        renderTable();
+                        renderGantt();
+                        toggleFileInput();
+                    } else {
+                        alert("El formato del JSON debe ser un arreglo de tareas.");
+                    }
+                } catch (error) {
+                    alert("Error al leer el archivo JSON. Asegúrate de que sea válido.");
+                    console.error(error);
+                }
+            };
+            reader.readAsText(file);
         }
 
+        function donwloadJson() {
+            // Filtra los datos para no incluir la última fila comodín/placeholder vacía
+            const cleanData = data.filter(d => d.title && d.title.trim() !== "");
+            
+            // Convierte el arreglo a un string JSON formateado
+            const jsonString = JSON.stringify(cleanData, null, 2);
+            
+            // Crea un blob con el contenido y genera un enlace de descarga temporal
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "gantt_tasks.json"; // Nombre por defecto del archivo
+            
+            // Simula el click para disparar la descarga en el navegador
+            document.body.appendChild(link);
+            link.click();
+            
+            // Limpia el DOM remoto removiendo el enlace temporal
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+                // Escucha cuando el usuario selecciona un archivo en el input
+        document.getElementById("gantt-file").addEventListener("change", onFileInput);
     </script>
 
     <script>
@@ -109,8 +153,12 @@
             // Agrega fila vacía si se pasa a modo edición y no hay una fila borrador
             if (isEditable()) {
                 ensureRowPlaceholder();
+            } else {
+                removeRowPlaceholder();
             }
             renderTable();
+            renderGantt();
+            toggleFileInput();
         }
         function isEditable() {
             return tbody.classList.contains("editable");
@@ -153,7 +201,6 @@
             return date.toISOString().split('T')[0];
         }
 
-        // --- NUEVA FUNCIÓN: Suma solo días hábiles ---
         function addBusinessDays(dateStr, days) {
             if (!dateStr) return "";
             // Forzamos la hora para evitar problemas de zona horaria
@@ -214,10 +261,22 @@
                 }
             });
         }
+
+        function getRowPlaceholder(){
+            return { id: generateId(), title: "", duration: "1" }
+        }
+        
         function ensureRowPlaceholder() {
             var lastTask = data[data.length - 1];
-            if (!lastTask || lastTask.title !== "") {
+            if (!lastTask || lastTask.title.trim() !== "") {
                 data.push({ id: generateId(), title: "", duration: "1" });
+            }
+        }
+
+        function removeRowPlaceholder() {
+            var lastTask = data[data.length - 1];
+            if (!lastTask || lastTask.title == "") {
+                data = data.filter(d=>d.title.trim()!="");
             }
         }
 
@@ -245,13 +304,19 @@
                 ensureRowPlaceholder();
             }
 
-            saveToLocalStorage();
             renderTable();
+            renderGantt();
+            saveToLocalStorage();
+            toggleFileInput();
         }
 
         function renderTable() {
             if (!tbody) return;
             tbody.innerHTML = "";
+
+            if (!isEditable()){
+                data = data.filter(d=>d.title.trim()!="");
+            }
 
             data.forEach(task => calculateTaskDates(task));
 
@@ -293,119 +358,10 @@
 
         // Renderizado inicial
         renderTable();
+        renderGantt();
+        toggleFileInput();
     </script>
 
-    <script>
-        // Tus datos de origen (Filtrado preventivo del id 32 que venía vacío)
-        const rawData = data;
-
-        const tasks = rawData.filter(t => t.title.trim() !== "");
-
-        // Ancho asignado en píxeles para representar un solo día
-        const DAY_WIDTH = 25;
-
-        // Evita errores de zona horaria local al parsear cadenas de texto 'YYYY-MM-DD'
-        function parseDate(dateStr) {
-            const [year, month, day] = dateStr.split('-');
-            return new Date(year, month - 1, day);
-        }
-
-        // 1. Identificar las fechas límite inicial y final del proyecto completo
-        let minDate = parseDate(tasks[0].start_date);
-        let maxDate = parseDate(tasks[0].end_date);
-
-        tasks.forEach(task => {
-            const start = parseDate(task.start_date);
-            const end = parseDate(task.end_date);
-            if (start < minDate) minDate = start;
-            if (end > maxDate) maxDate = end;
-        });
-
-        // Otorgar un colchón visual de 2 días a los extremos
-        minDate.setDate(minDate.getDate() - 2);
-        maxDate.setDate(maxDate.getDate() + 2);
-
-        // Calcular la cantidad total de días del espectro del calendario
-        const totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
-
-        // 2. Renderizar el área de fechas superior y las líneas verticales punteadas
-        const timelineHeader = document.getElementById('timelineHeader');
-        const timelineBody = document.getElementById('timelineBody');
-        timelineHeader.style.width = `${totalDays * DAY_WIDTH}px`;
-
-        for (let i = 0; i < totalDays; i++) {
-            const currentDate = new Date(minDate);
-            currentDate.setDate(minDate.getDate() + i);
-
-            // Crear líneas guía verticales
-            const gridLine = document.createElement('div');
-            gridLine.className = 'grid-line';
-            gridLine.style.left = `${i * DAY_WIDTH}px`;
-            timelineBody.appendChild(gridLine);
-
-            // Escribir texto de las fechas cada 3 días para evitar que se amontonen
-            if (i % 3 === 0) {
-                const dateCell = document.createElement('div');
-                dateCell.className = 'date-cell';
-                dateCell.style.left = `${i * DAY_WIDTH}px`;
-                dateCell.innerText = currentDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
-                timelineHeader.appendChild(dateCell);
-            }
-        }
-
-        // 3. Renderizar las descripciones de tareas y el bloque de barras correspondiente
-        const ganttTasksContainer = document.getElementById('ganttTasks');
-
-        tasks.forEach((task) => {
-            // Generar fila informativa en la columna izquierda
-            const taskRow = document.createElement('div');
-            taskRow.className = 'task-row';
-            taskRow.innerText = `${task.id}. ${task.title}`;
-            ganttTasksContainer.appendChild(taskRow);
-
-            // Crear la fila paralela en el cuerpo gráfico derecho
-            const timelineRow = document.createElement('div');
-            timelineRow.className = 'timeline-row';
-            timelineBody.appendChild(timelineRow);
-
-            // Calcular las distancias y dimensiones basadas en píxeles
-            const taskStart = parseDate(task.start_date);
-            const taskEnd = parseDate(task.end_date);
-
-            const daysFromStart = Math.ceil((taskStart - minDate) / (1000 * 60 * 60 * 24));
-            const taskDaysDuration = Math.ceil((taskEnd - taskStart) / (1000 * 60 * 60 * 24));
-
-            const leftPos = daysFromStart * DAY_WIDTH;
-            const widthPos = taskDaysDuration * DAY_WIDTH;
-
-            // Clasificación semántica de colores según palabras clave
-            let colorClass = 'bar-default';
-            const lowerTitle = task.title.toLowerCase();
-            if (lowerTitle.includes('buscar')) colorClass = 'bar-buscar';
-            else if (lowerTitle.includes('migrar')) colorClass = 'bar-migrar';
-            else if (lowerTitle.includes('qa')) colorClass = 'bar-qa';
-            else if (lowerTitle.includes('validación') || lowerTitle.includes('verificar')) colorClass = 'bar-validacion';
-
-            // Construcción de la barra de la Carta Gantt
-            const bar = document.createElement('div');
-            bar.className = `gantt-bar ${colorClass}`;
-            bar.style.left = `${leftPos}px`;
-            bar.style.width = `${widthPos}px`;
-
-            // Inyección de atributos informativos para los CSS Tooltips
-            const tooltipInfo = `${task.title} | ${task.start_date} al ${task.end_date} (${task.duration} d)`;
-            bar.setAttribute('data-tooltip', tooltipInfo);
-
-            // Texto de días embebido en la barra
-            const barText = document.createElement('span');
-            barText.className = 'gantt-bar-text';
-            barText.innerText = `${task.duration}d`;
-
-            bar.appendChild(barText);
-            timelineRow.appendChild(bar);
-        });
-
-    </script>
 </body>
 
 </html>

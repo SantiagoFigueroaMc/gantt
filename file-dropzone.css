@@ -1,0 +1,65 @@
+.file-dropzone {
+  /* Layout and Spacing */
+  max-width: 400px;
+  margin: 20px auto;
+  padding: 30px 20px;
+  
+  /* Styling */
+  background-color: #f8f9fa;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  
+  /* Alignment */
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  
+  /* Animation */
+  transition: all 0.3s ease;
+}
+
+/* Hover and Drag Effects */
+.file-dropzone:hover {
+  border-color: #3b82f6;
+  background-color: #eff6ff;
+  cursor: pointer;
+}
+
+/* Typography */
+.file-dropzone h2 {
+  font-family: sans-serif;
+  font-size: 1.25rem;
+  color: #1e293b;
+  margin: 0;
+}
+
+.file-dropzone p {
+  font-family: sans-serif;
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* File Input Customization */
+.file-dropzone input[type="file"] {
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.file-dropzone input[type="file"]::file-selector-button {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background 0.2s;
+}
+
+.file-dropzone input[type="file"]::file-selector-button:hover {
+  background-color: #2563eb;
+}
