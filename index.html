@@ -73,12 +73,20 @@
     </table>
 
     <script>
-        var data = [
+        var localData = localStorage.getItem("gantt_data");
+
+        var data = localData ? JSON.parse(localData) : [
             { id: "1", title: "Buscar tags en Adobe", start_date: "2026-07-15", duration: "2" },
             { id: "2", title: "Buscar tags en GTM", predecessor: "1", duration: "3" },
         ];
+
         var tbody = document.querySelector("tbody");
         var currentFilter = "";
+
+        function saveToLocalStorage() {
+            localStorage.setItem("gantt_data", JSON.stringify(data));
+        }
+
     </script>
 
     <script>
@@ -97,15 +105,12 @@
 
     <script>
         function copyToClipboard() {
-            // 1. Obtener los encabezados de la primera fila (excluyendo los filtros)
             var headers = Array.from(document.querySelectorAll("thead tr:first-child th"))
                 .map(th => th.innerText.trim());
 
-            var rows = [headers.join("\t")]; // El formato Excel usa tabulaciones (\t)
+            var rows = [headers.join("\t")];
 
-            // 2. Procesar los datos actuales (usamos el arreglo 'data' que tiene los valores reales)
             data.forEach(task => {
-                // Omitir la fila borrador vacía del modo edición si no tiene contenido relevante
                 if (!task.id && !task.title) return;
 
                 var rowCells = [
@@ -120,19 +125,15 @@
                 rows.push(rowCells.join("\t"));
             });
 
-            // 3. Unir todas las filas con saltos de línea
             var clipboardText = rows.join("\n");
 
-            // 4. Utilizar la API del portapapeles moderna
             navigator.clipboard.writeText(clipboardText)
                 .then(() => alert("Datos copiados"))
                 .catch(err => console.error("Error al copiar al portapapeles: ", err));
         }
-
     </script>
 
     <script>
-        // Funciones auxiliares de fechas (Formatos YYYY-MM-DD)
         function formatDate(date) {
             if (!date || isNaN(date.getTime())) return "";
             return date.toISOString().split('T')[0];
@@ -149,7 +150,6 @@
             return Math.floor(Math.random() * 10000).toString();
         }
 
-        // Lógica de Negocio y Ciclo de Vida del Diagrama Gantt
         function calculateTaskDates(task) {
             task.start_date = getStartDate(task);
             task.end_date = getEndDate(task);
@@ -188,17 +188,20 @@
             }
         }
 
-        // Controladores de eventos e Inputs
         function onFilterChange(e) {
             currentFilter = e.target.value.toLowerCase();
             renderTable();
         }
 
-        function onInputChange(e, index, field) {
+        // CONTROLADOR MODIFICADO: Cambiado a onBlur y simplificado
+        function onInputBlur(e, index, field) {
             var value = e.target.value;
             var task = data[index];
 
             if (!task) return;
+
+            // Evita re-renderizar si el valor no cambió realmente
+            if (task[field] === value) return;
 
             task[field] = value;
 
@@ -207,38 +210,19 @@
                 updateSuccessorTasks(task);
             }
 
-            // Si se edita la fila borrador, creamos una nueva vacía abajo
             if (index === data.length - 1 && task.title !== "") {
                 ensureRowPlaceholder();
             }
 
-            // LLAMADA: Guardar cambios inmediatamente al escribir
             saveToLocalStorage();
-
             renderTable();
-
-            // Recuperar el foco del input editado
-            setTimeout(() => {
-                var rows = tbody.querySelectorAll("tr");
-                var fieldsOrder = ["id", "title", "start_date", "duration", "end_date", "predecessor"];
-                var fieldIndex = fieldsOrder.indexOf(field);
-
-                var targetInput = rows[index]?.querySelectorAll("td")[fieldIndex]?.querySelector("input");
-                if (targetInput) {
-                    targetInput.focus();
-                    if (targetInput.type !== "date" && targetInput.type !== "number") {
-                        var len = targetInput.value.length;
-                        targetInput.setSelectionRange(len, len);
-                    }
-                }
-            }, 0);
         }
 
+        // RENDERIZADO MODIFICADO: Ahora usa onblur en vez de onchange
         function renderTable() {
             if (!tbody) return;
             tbody.innerHTML = "";
 
-            // Calcular fechas antes de renderizar
             data.forEach(task => calculateTaskDates(task));
 
             data.forEach((rowContent, index) => {
@@ -250,63 +234,35 @@
                 row.innerHTML = `
                 <td>
                     <span>${rowContent.id || ''}</span>
-                    <input oninput="onInputChange(event, ${index}, 'id')" placeholder="Id" value="${rowContent.id || ''}"/>
+                    <input type="text" value="${rowContent.id || ''}" onblur="onInputBlur(event, ${index}, 'id')">
                 </td>
                 <td>
                     <span>${rowContent.title || ''}</span>
-                    <input oninput="onInputChange(event, ${index}, 'title')" placeholder="Title" value="${rowContent.title || ''}"/>
+                    <input type="text" value="${rowContent.title || ''}" onblur="onInputBlur(event, ${index}, 'title')">
                 </td>
                 <td>
                     <span>${rowContent.start_date || ''}</span>
-                    <input type="date" oninput="onInputChange(event, ${index}, 'start_date')" value="${rowContent.start_date || ''}"/>
+                    <input type="date" value="${rowContent.start_date || ''}" onblur="onInputBlur(event, ${index}, 'start_date')">
                 </td>
                 <td>
-                    <span>${rowContent.duration || ''}</span>
-                    <input type="number" oninput="onInputChange(event, ${index}, 'duration')" value="${rowContent.duration || ''}"/>
+                    <span>${rowContent.duration || '1'}</span>
+                    <input type="number" min="1" value="${rowContent.duration || '1'}" onblur="onInputBlur(event, ${index}, 'duration')">
                 </td>
                 <td>
                     <span>${rowContent.end_date || ''}</span>
-                    <input type="date" readonly value="${rowContent.end_date || ''}"/>
+                    <input type="date" value="${rowContent.end_date || ''}" disabled>
                 </td>
                 <td>
                     <span>${rowContent.predecessor || ''}</span>
-                    <input oninput="onInputChange(event, ${index}, 'predecessor')" placeholder="Predecessor" value="${rowContent.predecessor || ''}"/>
+                    <input type="text" value="${rowContent.predecessor || ''}" onblur="onInputBlur(event, ${index}, 'predecessor')">
                 </td>
                 `;
                 tbody.appendChild(row);
             });
         }
 
-        // --- INICIALIZACIÓN DE LA APLICACIÓN ---
-        // LLAMADA: Cargar datos guardados antes de renderizar la primera vez
-        loadFromLocalStorage();
+        // Renderizado inicial
         renderTable();
-    </script>
-
-    <script>
-        // --- FUNCIONES DE LOCAL STORAGE ---
-        function saveToLocalStorage() {
-            // Guardamos todo el arreglo 'data', excluyendo la fila borrador vacía del final
-            var dataToSave = data.filter((task, index) => {
-                if (index === data.length - 1 && !task.id && !task.title) return false;
-                return true;
-            });
-            localStorage.setItem("gantt_data", JSON.stringify(dataToSave));
-        }
-
-        function loadFromLocalStorage() {
-            var savedData = localStorage.getItem("gantt_data");
-            if (savedData) {
-                data = JSON.parse(savedData);
-            }
-        }
-    </script>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            tbody = document.querySelector("tbody");
-            renderTable();
-        });
     </script>
 </body>
 
