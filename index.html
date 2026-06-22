@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gantt</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+        /* Control de visualización mediante CSS */
+        td input {
+            display: none;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 4px;
+        }
+
+        td span {
+            display: inline-block;
+            width: 100%;
+            min-height: 1.2em;
+        }
+
+        /* Cuando tbody tiene la clase editable, muestra inputs y oculta spans */
+        tbody.editable td input {
+            display: block;
+        }
+
+        tbody.editable td span {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <button onclick="toggleEdit()">Editar</button>
+        <button onclick="copyToClipboard()">Copiar</button>
+    </header>
+    <table>
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Topic</th>
+                <th>Start date</th>
+                <th>Duration (days)</th>
+                <th>End date</th>
+                <th>Starts after (Predecessor Id)</th>
+            </tr>
+            <tr>
+                <th></th>
+                <th><input name="filter" type="search" oninput="onFilterChange(event)"></th>
+                <th colspan="4"></th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        var data = [
+            { id: "1", title: "Buscar tags en Adobe", start_date: "2026-07-15", duration: "2" },
+            { id: "2", title: "Buscar tags en GTM", predecessor: "1", duration: "3" },
+        ];
+        var tbody = document.querySelector("tbody");
+        var currentFilter = "";
+    </script>
+
+    <script>
+        function toggleEdit() {
+            tbody.classList.toggle("editable");
+            // Agrega fila vacía si se pasa a modo edición y no hay una fila borrador
+            if (isEditable()) {
+                ensureRowPlaceholder();
+            }
+            renderTable();
+        }
+        function isEditable() {
+            return tbody.classList.contains("editable");
+        }
+    </script>
+
+    <script>
+        function copyToClipboard() {
+            // 1. Obtener los encabezados de la primera fila (excluyendo los filtros)
+            var headers = Array.from(document.querySelectorAll("thead tr:first-child th"))
+                .map(th => th.innerText.trim());
+
+            var rows = [headers.join("\t")]; // El formato Excel usa tabulaciones (\t)
+
+            // 2. Procesar los datos actuales (usamos el arreglo 'data' que tiene los valores reales)
+            data.forEach(task => {
+                // Omitir la fila borrador vacía del modo edición si no tiene contenido relevante
+                if (!task.id && !task.title) return;
+
+                var rowCells = [
+                    task.id || "",
+                    task.title || "",
+                    task.start_date || "",
+                    task.duration || "1",
+                    task.end_date || "",
+                    task.predecessor || ""
+                ];
+
+                rows.push(rowCells.join("\t"));
+            });
+
+            // 3. Unir todas las filas con saltos de línea
+            var clipboardText = rows.join("\n");
+
+            // 4. Utilizar la API del portapapeles moderna
+            navigator.clipboard.writeText(clipboardText)
+                .then(() => alert("Datos copiados"))
+                .catch(err => console.error("Error al copiar al portapapeles: ", err));
+        }
+
+    </script>
+
+    <script>
+        // Funciones auxiliares de fechas (Formatos YYYY-MM-DD)
+        function formatDate(date) {
+            if (!date || isNaN(date.getTime())) return "";
+            return date.toISOString().split('T')[0];
+        }
+
+        function addDays(dateStr, days) {
+            if (!dateStr) return "";
+            var date = new Date(dateStr + "T00:00:00");
+            date.setDate(date.getDate() + parseInt(days || 0, 10));
+            return formatDate(date);
+        }
+
+        function generateId() {
+            return Math.floor(Math.random() * 10000).toString();
+        }
+
+        // Lógica de Negocio y Ciclo de Vida del Diagrama Gantt
+        function calculateTaskDates(task) {
+            task.start_date = getStartDate(task);
+            task.end_date = getEndDate(task);
+        }
+
+        function getStartDate(task) {
+            if (task.predecessor) {
+                var pred = data.find(t => t.id === task.predecessor);
+                if (pred) {
+                    return getEndDate(pred);
+                }
+            }
+            return task.start_date || formatDate(new Date());
+        }
+
+        function getEndDate(task) {
+            var start = task.start_date || getStartDate(task);
+            var duration = parseInt(task.duration, 10);
+            if (isNaN(duration) || duration < 1) duration = 1;
+            return addDays(start, duration);
+        }
+
+        function updateSuccessorTasks(parentTask) {
+            data.forEach(task => {
+                if (task.predecessor === parentTask.id) {
+                    calculateTaskDates(task);
+                    updateSuccessorTasks(task);
+                }
+            });
+        }
+
+        // Controladores de eventos e Inputs
+        function onFilterChange(e) {
+            currentFilter = e.target.value.toLowerCase();
+            renderTable();
+        }
+
+        function onInputChange(e, index, field) {
+            var value = e.target.value;
+            var task = data[index];
+
+            if (!task) return;
+
+            task[field] = value;
+
+            if (field === "predecessor" || field === "start_date" || field === "duration") {
+                calculateTaskDates(task);
+                updateSuccessorTasks(task);
+            }
+
+            // Si se edita la fila borrador, creamos una nueva vacía abajo
+            if (index === data.length - 1 && task.title !== "") {
+                ensureRowPlaceholder();
+            }
+
+            renderTable();
+
+            // Recuperar el foco del input editado
+            setTimeout(() => {
+                var rows = tbody.querySelectorAll("tr");
+                var fieldsOrder = ["id", "title", "start_date", "duration", "end_date", "predecessor"];
+                var fieldIndex = fieldsOrder.indexOf(field);
+
+                var targetInput = rows[index]?.querySelectorAll("td")[fieldIndex]?.querySelector("input");
+                if (targetInput) {
+                    targetInput.focus();
+                    if (targetInput.type !== "date" && targetInput.type !== "number") {
+                        var len = targetInput.value.length;
+                        targetInput.setSelectionRange(len, len);
+                    }
+                }
+            }, 0);
+        }
+
+        function renderTable() {
+            if (!tbody) return;
+            tbody.innerHTML = "";
+
+            // Calcular fechas antes de renderizar
+            data.forEach(task => calculateTaskDates(task));
+
+            data.forEach((rowContent, index) => {
+                if (currentFilter && !rowContent.title.toLowerCase().includes(currentFilter)) {
+                    if (index !== data.length - 1 || rowContent.title !== "") return;
+                }
+
+                var row = document.createElement("tr");
+                row.innerHTML = `
+                <td>
+                    <span>${rowContent.id || ''}</span>
+                    <input oninput="onInputChange(event, ${index}, 'id')" placeholder="Id" value="${rowContent.id || ''}"/>
+                </td>
+                <td>
+                    <span>${rowContent.title || ''}</span>
+                    <input oninput="onInputChange(event, ${index}, 'title')" placeholder="Title" value="${rowContent.title || ''}"/>
+                </td>
+                <td>
+                    <span>${rowContent.start_date || ''}</span>
+                    <input oninput="onInputChange(event, ${index}, 'start_date')" type="date" value="${rowContent.start_date || ''}" ${rowContent.predecessor ? 'disabled' : ''}/>
+                </td>
+                <td>
+                    <span>${rowContent.duration || '1'}</span>
+                    <input oninput="onInputChange(event, ${index}, 'duration')" type="number" min="1" value="${rowContent.duration || '1'}"/>
+                </td>
+                <td>
+                    <span>${rowContent.end_date || ''}</span>
+                    <input type="date" value="${rowContent.end_date || ''}" disabled />
+                </td>
+                <td>
+                    <span>${rowContent.predecessor || ''}</span>
+                    <input oninput="onInputChange(event, ${index}, 'predecessor')" placeholder="Ej: 1" value="${rowContent.predecessor || ''}"/>
+                </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Cambiado de "addRowPlaceholder" para evitar duplicaciones infinitas en cada renderizado
+        function ensureRowPlaceholder() {
+            var lastTask = data[data.length - 1];
+            if (lastTask && lastTask.title === "") return; // Ya existe una fila borrador vacía
+
+            data.push({
+                id: generateId(),
+                title: "",
+                start_date: formatDate(new Date()),
+                duration: "1",
+                predecessor: ""
+            });
+        }
+    </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            tbody = document.querySelector("tbody");
+            renderTable();
+        });
+    </script>
+</body>
+
+</html>
