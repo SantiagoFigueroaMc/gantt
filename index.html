@@ -15,7 +15,7 @@
     <div class="gantt-container">
         <!-- Columna estática para los nombres de las tareas (Izquierda) -->
         <div class="gantt-tasks" id="ganttTasks">
-            
+
         </div>
 
         <!-- Área con scroll para la línea de tiempo gráfica (Derecha) -->
@@ -62,6 +62,9 @@
 
         var data = localData ? JSON.parse(localData) : [];
 
+        data = data
+            .sort((a, b) => Number(a.id) - Number(b.id));
+
         var ganttContainer = document.querySelector("div.gantt-container");
         var fileDropzoneContainer = document.querySelector("div.file-dropzone");
         var tbody = document.querySelector("tbody");
@@ -69,35 +72,35 @@
         var currentFilter = "";
 
         function saveToLocalStorage() {
-            localStorage.setItem("gantt_data", JSON.stringify(data.filter(d=>d.title.trim()!="")));
+            localStorage.setItem("gantt_data", JSON.stringify(data.filter(d => d.title.trim() != "")));
         }
     </script>
 
     <script src="script.js"></script>
 
     <script>
-        function toggleFileInput(){
-            var showDropZone = data.filter(d=>d.title.trim()!="").length == 0;
+        function toggleFileInput() {
+            var showDropZone = data.filter(d => d.title.trim() != "").length == 0;
             ganttContainer.classList.toggle("hidden", showDropZone);
             fileDropzoneContainer.classList.toggle("hidden", !showDropZone);
         }
     </script>
 
     <script>
-                function onFileInput(e) {
+        function onFileInput(e) {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = function (event) {
                 try {
                     // Parsea el contenido JSON del archivo
                     const parsedData = JSON.parse(event.target.result);
-                    
+
                     if (Array.isArray(parsedData)) {
                         // Filtra filas vacías que puedan venir en el archivo
                         data = parsedData.filter(d => d.title && d.title.trim() !== "");
-                        
+
                         // Si está en modo edición, asegura la fila borrador al final
                         if (isEditable()) {
                             ensureRowPlaceholder();
@@ -122,28 +125,28 @@
         function donwloadJson() {
             // Filtra los datos para no incluir la última fila comodín/placeholder vacía
             const cleanData = data.filter(d => d.title && d.title.trim() !== "");
-            
+
             // Convierte el arreglo a un string JSON formateado
             const jsonString = JSON.stringify(cleanData, null, 2);
-            
+
             // Crea un blob con el contenido y genera un enlace de descarga temporal
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
-            
+
             const link = document.createElement("a");
             link.href = url;
             link.download = "gantt_tasks.json"; // Nombre por defecto del archivo
-            
+
             // Simula el click para disparar la descarga en el navegador
             document.body.appendChild(link);
             link.click();
-            
+
             // Limpia el DOM remoto removiendo el enlace temporal
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         }
 
-                // Escucha cuando el usuario selecciona un archivo en el input
+        // Escucha cuando el usuario selecciona un archivo en el input
         document.getElementById("gantt-file").addEventListener("change", onFileInput);
     </script>
 
@@ -262,10 +265,10 @@
             });
         }
 
-        function getRowPlaceholder(){
+        function getRowPlaceholder() {
             return { id: generateId(), title: "", duration: "1" }
         }
-        
+
         function ensureRowPlaceholder() {
             var lastTask = data[data.length - 1];
             if (!lastTask || lastTask.title.trim() !== "") {
@@ -276,7 +279,7 @@
         function removeRowPlaceholder() {
             var lastTask = data[data.length - 1];
             if (!lastTask || lastTask.title == "") {
-                data = data.filter(d=>d.title.trim()!="");
+                data = data.filter(d => d.title.trim() != "");
             }
         }
 
@@ -314,8 +317,8 @@
             if (!tbody) return;
             tbody.innerHTML = "";
 
-            if (!isEditable()){
-                data = data.filter(d=>d.title.trim()!="");
+            if (!isEditable()) {
+                data = data.filter(d => d.title.trim() != "");
             }
 
             data.forEach(task => calculateTaskDates(task));
