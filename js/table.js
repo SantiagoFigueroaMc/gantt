@@ -62,6 +62,31 @@ export function onInputBlur(e, index, field) {
   saveToLocalStorage();
 }
 
+// ── Helpers para construcción segura de celdas ───────────────────────────────
+
+/**
+ * Crea una <td> con un <span> (vista) y un <input> (edición).
+ * Usar textContent y .value en lugar de innerHTML evita XSC con datos del usuario.
+ */
+function createCell(spanText, input) {
+  const td = document.createElement("td");
+  const span = document.createElement("span");
+  span.textContent = spanText;
+  td.appendChild(span);
+  td.appendChild(input);
+  return td;
+}
+
+function makeInput(type, value, index, field, extra = {}) {
+  const input = document.createElement("input");
+  input.type = type;
+  input.value = value ?? "";
+  input.addEventListener("blur", (e) => onInputBlur(e, index, field));
+  if (extra.min !== undefined) input.min = extra.min;
+  if (extra.disabled) input.disabled = true;
+  return input;
+}
+
 // ── Render ───────────────────────────────────────────────────────────────────
 
 export function renderTable() {
@@ -86,32 +111,53 @@ export function renderTable() {
     if (!matchesFilter && !(isLast && rowContent.title === "")) return;
 
     const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>
-        <span>${rowContent.id || ""}</span>
-        <input type="text" value="${rowContent.id || ""}" onblur="onInputBlur(event, ${index}, 'id')">
-      </td>
-      <td>
-        <span>${rowContent.title || ""}</span>
-        <input type="text" value="${rowContent.title || ""}" onblur="onInputBlur(event, ${index}, 'title')">
-      </td>
-      <td>
-        <span>${rowContent.start_date || ""}</span>
-        <input type="date" value="${rowContent.start_date || ""}" onblur="onInputBlur(event, ${index}, 'start_date')" ${rowContent.predecessor ? "disabled" : ""}>
-      </td>
-      <td>
-        <span>${rowContent.duration || "1"}</span>
-        <input type="number" min="1" value="${rowContent.duration || "1"}" onblur="onInputBlur(event, ${index}, 'duration')">
-      </td>
-      <td>
-        <span>${rowContent.end_date || ""}</span>
-        <input type="date" value="${rowContent.end_date || ""}" disabled>
-      </td>
-      <td>
-        <span>${rowContent.predecessor || ""}</span>
-        <input type="text" value="${rowContent.predecessor || ""}" onblur="onInputBlur(event, ${index}, 'predecessor')">
-      </td>
-    `;
+
+    // ID
+    row.appendChild(
+      createCell(
+        rowContent.id ?? "",
+        makeInput("text", rowContent.id, index, "id")
+      )
+    );
+
+    // Título
+    row.appendChild(
+      createCell(
+        rowContent.title ?? "",
+        makeInput("text", rowContent.title, index, "title")
+      )
+    );
+
+    // Fecha inicio (deshabilitada si tiene predecesor)
+    const startInput = makeInput("date", rowContent.start_date, index, "start_date", {
+      disabled: !!rowContent.predecessor,
+    });
+    row.appendChild(createCell(rowContent.start_date ?? "", startInput));
+
+    // Duración
+    row.appendChild(
+      createCell(
+        rowContent.duration ?? "1",
+        makeInput("number", rowContent.duration ?? "1", index, "duration", { min: 1 })
+      )
+    );
+
+    // Fecha fin (siempre deshabilitada, calculada)
+    row.appendChild(
+      createCell(
+        rowContent.end_date ?? "",
+        makeInput("date", rowContent.end_date, index, "end_date", { disabled: true })
+      )
+    );
+
+    // Predecesor
+    row.appendChild(
+      createCell(
+        rowContent.predecessor ?? "",
+        makeInput("text", rowContent.predecessor, index, "predecessor")
+      )
+    );
+
     tbody.appendChild(row);
   });
 }

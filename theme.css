@@ -1,0 +1,95 @@
+/* 0. TIPOGRAFÍA */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,600;1,9..40,300&display=swap');
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+/* 1. PALETA DE COLORES (Variables base) */
+:root {
+  /* Tonos Claros */
+  --clr-white: #ffffff;
+  --clr-gray-100: #f8f9fa;
+  --clr-gray-200: #e9ecef;
+  --clr-gray-800: #212529;
+  --clr-gray-900: #121212;
+  
+  /* Tonos Oscuros */
+  --clr-dark-bg: #121212;
+  --clr-dark-surface: #1e1e1e;
+  --clr-dark-border: #2d2d2d;
+
+  /* Colores de Marca / Acento */
+  --clr-primary-light: #3b82f6;
+  --clr-primary-dark: #60a5fa;
+  --clr-accent: #10b981;
+}
+
+/* 2. CONFIGURACIÓN POR DEFECTO: MODO CLARO */
+:root {
+  --bg: var(--clr-white);
+  --bg-surface: var(--clr-gray-100);
+  --border: var(--clr-gray-200);
+  --text: var(--clr-gray-800);
+  --text-muted: #6b7280;
+  --primary: var(--clr-primary-light);
+  --accent: var(--clr-accent);
+  color-scheme: light;
+}
+
+/* 3. DETECCIÓN AUTOMÁTICA DEL NAVEGADOR (Modo Oscuro) */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light-mode) {
+    --bg: var(--clr-dark-bg);
+    --bg-surface: var(--clr-dark-surface);
+    --border: var(--clr-dark-border);
+    --text: var(--clr-gray-100);
+    --text-muted: #9ca3af;
+    --primary: var(--clr-primary-dark);
+    color-scheme: dark;
+  }
+}
+
+/* 4. ANULACIÓN MANUAL (Por si el usuario elige con JavaScript) */
+:root.light-mode {
+  --bg: var(--clr-white);
+  --bg-surface: var(--clr-gray-100);
+  --border: var(--clr-gray-200);
+  --text: var(--clr-gray-800);
+  --text-muted: #6b7280;
+  --primary: var(--clr-primary-light);
+  color-scheme: light;
+}
+
+:root.dark-mode {
+  --bg: var(--clr-dark-bg);
+  --bg-surface: var(--clr-dark-surface);
+  --border: var(--clr-dark-border);
+  --text: var(--clr-gray-100);
+  --text-muted: #9ca3af;
+  --primary: var(--clr-primary-dark);
+  color-scheme: dark;
+}
+
+/* 5. BOTÓN FLOTANTE DE TEMA */
+#theme-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  padding: 10px 16px;
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  color: var(--text);
+  cursor: pointer;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s, background-color 0.3s, color 0.3s;
+}
+
+#theme-toggle:hover {
+  transform: scale(1.05);
+}
