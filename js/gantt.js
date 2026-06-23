@@ -1,6 +1,7 @@
-function renderGantt() {
-    const tasks = data.filter(t => t.title.trim() !== "");
+import { data } from "./state.js";
 
+export function renderGantt() {
+    const tasks = data.value.filter(t => t.title.trim() !== "");
 
     const timelineHeader = document.getElementById('timelineHeader');
     const timelineBody = document.getElementById('timelineBody');
