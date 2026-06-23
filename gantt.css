@@ -26,6 +26,7 @@
     flex-shrink: 0;
     border-right: 2px solid var(--border);
     background: var(--bg);
+    position: relative;
     z-index: 2;
 }
 
@@ -83,13 +84,17 @@
 
 .gantt-timeline-body {
     position: relative;
+    /* Permite que top:0/bottom:0 de .grid-line funcione correctamente */
+    display: flex;
+    flex-direction: column;
 }
 
 /* Líneas de fondo de la cuadrícula */
 .grid-line {
     position: absolute;
     top: 0;
-    bottom: 0;
+    /* Estira hasta cubrir todas las filas de tareas */
+    height: 100%;
     border-left: 1px dashed var(--border);
     z-index: 1;
     pointer-events: none;
@@ -117,6 +122,7 @@
     padding: 0 8px;
     box-sizing: border-box;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    z-index: 3;
 }
 
 .gantt-bar:hover {
@@ -146,9 +152,9 @@
 .gantt-bar::after {
     content: attr(data-tooltip);
     position: absolute;
-    bottom: 130%;
-    left: 50%;
-    transform: translateX(-50%);
+    bottom: 0%;
+    left: 100%;
+    transform: translateX(2px);
     background: var(--text);
     color: var(--bg);
     padding: 6px 10px;

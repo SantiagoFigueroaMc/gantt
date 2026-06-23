@@ -12,13 +12,17 @@ export function renderGantt() {
 
     if (tasks.length == 0) return;
 
-    // Ancho asignado en píxeles para representar un solo día
     const DAY_WIDTH = 25;
 
     // Evita errores de zona horaria local al parsear cadenas de texto 'YYYY-MM-DD'
     function parseDate(dateStr) {
         const [year, month, day] = dateStr.split('-');
         return new Date(year, month - 1, day);
+    }
+
+    // Diferencia en días exacta, sin redondeos que acumulen error
+    function diffDays(a, b) {
+        return Math.round((a - b) / (1000 * 60 * 60 * 24));
     }
 
     // 1. Identificar las fechas límite inicial y final del proyecto completo
@@ -32,12 +36,10 @@ export function renderGantt() {
         if (end > maxDate) maxDate = end;
     });
 
-    // Otorgar un colchón visual de 2 días a los extremos
-    minDate.setDate(minDate.getDate() - 2);
+    // Colchón visual: 0 días al inicio (la etiqueta se maneja aparte) y 2 al final
     maxDate.setDate(maxDate.getDate() + 2);
 
-    // Calcular la cantidad total de días del espectro del calendario
-    const totalDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
+    const totalDays = diffDays(maxDate, minDate);
 
     // 2. Renderizar el área de fechas superior y las líneas verticales punteadas
     timelineHeader.style.width = `${totalDays * DAY_WIDTH}px`;
@@ -46,42 +48,52 @@ export function renderGantt() {
         const currentDate = new Date(minDate);
         currentDate.setDate(minDate.getDate() + i);
 
-        // Crear líneas guía verticales
+        // Líneas guía verticales
         const gridLine = document.createElement('div');
         gridLine.className = 'grid-line';
         gridLine.style.left = `${i * DAY_WIDTH}px`;
         timelineBody.appendChild(gridLine);
 
-        // Escribir texto de las fechas cada 3 días para evitar que se amontonen
+        // Etiquetas de fecha cada 3 días
         if (i % 3 === 0) {
             const dateCell = document.createElement('div');
             dateCell.className = 'date-cell';
-            dateCell.style.left = `${i * DAY_WIDTH}px`;
             dateCell.innerText = currentDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+
+            // FIX: La primera etiqueta (i=0) se ancla a la izquierda sin centrado
+            // para que no quede cortada fuera del contenedor.
+            // El resto usan left + translateX(-50%) para centrarse sobre su línea.
+            if (i === 0) {
+                dateCell.style.left = '4px';
+                dateCell.style.transform = 'none';
+            } else {
+                dateCell.style.left = `${i * DAY_WIDTH}px`;
+                // transform: translateX(-50%) viene del CSS
+            }
+
             timelineHeader.appendChild(dateCell);
         }
     }
 
-    // 3. Renderizar las descripciones de tareas y el bloque de barras correspondiente
+    // 3. Renderizar las descripciones de tareas y las barras
 
     tasks.forEach((task) => {
-        // Generar fila informativa en la columna izquierda
         const taskRow = document.createElement('div');
         taskRow.className = 'task-row';
         taskRow.innerText = `${task.id}. ${task.title}`;
         ganttTasksContainer.appendChild(taskRow);
 
-        // Crear la fila paralela en el cuerpo gráfico derecho
         const timelineRow = document.createElement('div');
         timelineRow.className = 'timeline-row';
         timelineBody.appendChild(timelineRow);
 
-        // Calcular las distancias y dimensiones basadas en píxeles
         const taskStart = parseDate(task.start_date);
         const taskEnd = parseDate(task.end_date);
 
-        const daysFromStart = Math.ceil((taskStart - minDate) / (1000 * 60 * 60 * 24));
-        const taskDaysDuration = Math.ceil((taskEnd - taskStart) / (1000 * 60 * 60 * 24));
+        // FIX: diffDays con Math.round en lugar de Math.ceil
+        // evita que las barras aparezcan un día desplazadas a la derecha
+        const daysFromStart = diffDays(taskStart, minDate);
+        const taskDaysDuration = diffDays(taskEnd, taskStart);
 
         const leftPos = daysFromStart * DAY_WIDTH;
         const widthPos = taskDaysDuration * DAY_WIDTH;
@@ -94,17 +106,14 @@ export function renderGantt() {
         else if (lowerTitle.includes('qa')) colorClass = 'bar-qa';
         else if (lowerTitle.includes('validación') || lowerTitle.includes('verificar')) colorClass = 'bar-validacion';
 
-        // Construcción de la barra de la Carta Gantt
         const bar = document.createElement('div');
         bar.className = `gantt-bar ${colorClass}`;
         bar.style.left = `${leftPos}px`;
         bar.style.width = `${widthPos}px`;
 
-        // Inyección de atributos informativos para los CSS Tooltips
         const tooltipInfo = `${task.title} | ${task.start_date} al ${task.end_date} (${task.duration} d)`;
         bar.setAttribute('data-tooltip', tooltipInfo);
 
-        // Texto de días embebido en la barra
         const barText = document.createElement('span');
         barText.className = 'gantt-bar-text';
         barText.innerText = `${task.duration}d`;
@@ -112,5 +121,4 @@ export function renderGantt() {
         bar.appendChild(barText);
         timelineRow.appendChild(bar);
     });
-
 }
