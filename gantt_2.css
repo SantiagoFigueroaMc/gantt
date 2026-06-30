@@ -1,80 +1,206 @@
+/* --- VARIABLES GLOBALES --- */
+:root {
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --bg-main: #f8fafc;
+    --border-color: #cbd5e1;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --gantt-bar-color: #3b82f6;
+    --gantt-dot-color: #ef4444;
+    --sticky-col-width: 120px;
+}
+
+/* --- ESTILOS GENERALES Y FUENTE --- */
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    margin: 24px;
+}
+
+/* --- BOTONES Y CONTENEDOR DE ACCIONES --- */
 .actions-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background-color: #ffffff;
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
+.actions-container > div {
+    display: flex;
+    gap: 8px;
+}
 
-/* Contenedor obligatorio para el scroll */
+button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+button:hover {
+    background-color: var(--primary-hover);
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+input[type="text"] {
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input[type="text"]:focus {
+    border-color: var(--primary-color);
+}
+
+/* --- CONTENEDOR DE TABLA (SCROLL) --- */
 .table-container {
     width: 100%;
     overflow-x: auto;
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+    border: 1px solid var(--border-color);
 }
 
-/* Estructura fija de la tabla */
+/* --- ESTRUCTURA DE LA TABLA --- */
 table {
     table-layout: fixed;
     width: max-content;
     min-width: 100%;
-    border-collapse: separate; /* Obligatorio para sticky */
+    border-collapse: separate; 
     border-spacing: 0;
+    font-size: 14px;
 }
 
-/* Estilos base de celdas y bordes */
 th, td {
-    padding: 12px;
-    background-color: #ffffff; /* Fondo sólido obligatorio */
-    border-right: 1px solid #ccc;
-    border-bottom: 1px solid #ccc;
+    padding: 10px 12px;
+    background-color: #ffffff; 
+    border-right: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
     box-sizing: border-box;
+    text-align: left;
 }
-tr:first-child th { border-top: 1px solid #ccc; }
-th:first-child, td:first-child { border-left: 1px solid #ccc; }
 
-/* --- CONFIGURACIÓN DE LAS 4 COLUMNAS FIJAS --- */
+/* --- ESTILOS DE ENCABEZADO --- */
+thead td, thead th {
+    background-color: #f1f5f9;
+    color: var(--text-main);
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+}
 
-/* 1. Definir el mismo ancho para las 4 columnas fijas */
-th:nth-child(-n+4), 
-td:nth-child(-n+4) {
+/* --- REGLAS STICKY PARA LAS 4 COLUMNAS FIJAS --- */
+thead td:nth-child(-n+4),
+thead th:nth-child(-n+4),
+tbody td:nth-child(-n+4) {
     position: sticky;
-    width: 120px; /* Ajusta este valor si quieres celdas más anchas */
+    width: var(--sticky-col-width);
     z-index: 2;
 }
 
-/* 2. Posicionar cada columna según el acumulado de su ancho (0, 120, 240, 360) */
-th:nth-child(1), td:nth-child(1) { left: 0px; }
-th:nth-child(2), td:nth-child(2) { left: 120px; }
-th:nth-child(3), td:nth-child(3) { left: 240px; }
-th:nth-child(4), td:nth-child(4) { left: 360px; }
+/* Posicionamiento acumulado exacto */
+thead td:nth-child(1), thead th:nth-child(1), tbody td:nth-child(1) { left: 0px; }
+thead td:nth-child(2), thead th:nth-child(2), tbody td:nth-child(2) { left: calc(var(--sticky-col-width) * 1); }
+thead td:nth-child(3), thead th:nth-child(3), tbody td:nth-child(3) { left: calc(var(--sticky-col-width) * 2); }
+thead td:nth-child(4), thead th:nth-child(4), tbody td:nth-child(4) { left: calc(var(--sticky-col-width) * 3); }
 
-/* 3. Definir el ancho de las demás columnas móviles (5 en adelante) */
-th:nth-child(n+5), 
-td:nth-child(n+5) {
-    width: 150px; 
+/* Fondo alterno para las celdas fijas del cuerpo */
+tbody td:nth-child(-n+4) {
+    background-color: #f8fafc;
+    font-weight: 500;
 }
 
-/* --- DETALLES VISUALES Y CAPAS --- */
+/* Dar prioridad de capa a la fila superior de cabecera fija */
+thead td:nth-child(-n+4), thead th:nth-child(-n+4) {
+    z-index: 3;
+    background-color: #e2e8f0;
+}
 
-/* Sombra en la cuarta columna para marcar la separación al hacer scroll */
-th:nth-child(4)::after, 
-td:nth-child(4)::after {
+/* --- REGLAS PARA COLUMNAS MÓVILES (SEMANAS) --- */
+thead th:nth-child(n+5), 
+tbody td:nth-child(n+5) {
+    width: 100px; 
+    text-align: center;
+}
+
+/* --- EFECTOS VISUALES Y DETALLES --- */
+
+/* Sombra de separación en la cuarta columna al scrollear */
+thead td:nth-child(4)::after,
+thead th:nth-child(4)::after,
+tbody td:nth-child(4)::after {
     content: "";
     position: absolute;
     top: 0;
-    right: -5px;
+    right: -6px;
     bottom: 0;
-    width: 5px;
-    background: linear-gradient(to right, rgba(0,0,0,0.15), rgba(0,0,0,0));
+    width: 6px;
+    background: linear-gradient(to right, rgba(0,0,0,0.08), rgba(0,0,0,0));
     pointer-events: none;
 }
 
-/* Estilos del encabezado (Th) */
-th {
-    background-color: #007BFF;
-    color: white;
+/* Efecto hover suave en las filas */
+tbody tr:hover td {
+    background-color: #f1f5f9;
+}
+tbody tr:hover td:nth-child(-n+4) {
+    background-color: #f1f5f9; 
 }
 
-/* Asegurar que las cabeceras fijas queden siempre arriba de las celdas fijas */
-th:nth-child(-n+4) {
-    z-index: 3; 
+/* --- ELIMINACIÓN DE EFECTOS VISUALES DE EDICIÓN --- */
+td[contenteditable="true"]:focus {
+    outline: none; /* Quita el borde azul o negro nativo del navegador */
+    box-shadow: none; /* Elimina sombras extra */
+}
+
+/* --- ELEMENTOS DEL GRÁFICO GANTT --- */
+
+/* Estilo para la barra de duración (Semanas completas) */
+td.gantt-bar {
+    background-color: var(--gantt-bar-color) !important;
+    color: white;
+    position: relative;
+}
+
+/* Efecto visual de continuidad entre bloques Gantt */
+td.gantt-bar::before {
+    content: "";
+    position: absolute;
+    inset: 4px -1px 4px -1px;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+}
+
+/* Estilo para el punto único (Solo fecha de inicio) */
+.gantt-dot {
+    color: var(--gantt-dot-color);
+    font-size: 24px;
+    line-height: 0;
+    display: inline-block;
+    vertical-align: middle;
+    animation: popIn 0.3s ease-out;
+}
+
+@keyframes popIn {
+    0% { transform: scale(0); }
+    100% { transform: scale(1); }
 }

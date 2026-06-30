@@ -11,10 +11,6 @@
 <body>
     <div class="actions-container">
         <button id="add-row">Agregar fila</button>
-        <div>
-            <input type="text" id="col-header" value="Semana 1">
-            <button id="add-column">Agregar columna</button>
-        </div>
         <!-- Botón opcional por si quieres limpieza manual -->
         <button id="clear-storage" style="background-color: #ff4d4d; color: white;">Borrar datos</button>
     </div>
@@ -34,9 +30,123 @@
     </div>
 
     <script>
-        function updateTable(table) {
-            var rows = table.querySelector("tbody").querySelectorAll("tr");
+        // --- LÓGICA DE PROGRAMACIÓN Y CÁLCULO GANTT ---
+
+        function parseFecha(stringFecha) {
+            if (!stringFecha) return null;
+            const partes = stringFecha.trim().split('-');
+            if (partes.length !== 3) return null;
+            const año = parseInt(partes[0], 10);
+            const mes = parseInt(partes[1], 10) - 1;
+            const dia = parseInt(partes[2], 10);
+            const fecha = new Date(año, mes, dia);
+            return isNaN(fecha.getTime()) ? null : fecha;
         }
+
+        function formatearFecha(fecha) {
+            const año = fecha.getFullYear();
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            return `${año}-${mes}-${dia}`;
+        }
+
+        function calcularFechaFin(fechaInicio, diasDuracion) {
+            let fecha = new Date(fechaInicio.getTime());
+            let diasContados = 0;
+            let diasAAgregar = diasDuracion - 1;
+            if (diasAAgregar < 0) diasAAgregar = 0;
+
+            while (diasContados < diasAAgregar) {
+                fecha.setDate(fecha.getDate() + 1);
+                const diaSemana = fecha.getDay();
+                if (diaSemana !== 0 && diaSemana !== 6) { // 0 = Domingo, 6 = Sábado
+                    diasContados++;
+                }
+            }
+            return fecha;
+        }
+
+        function updateTable() {
+            const table = document.querySelector("table");
+            if (!table) return;
+
+            const rows = table.querySelectorAll("tbody tr");
+
+            rows.forEach(row => {
+                const celdas = row.querySelectorAll("td");
+                if (celdas.length < 4) return;
+
+                // Desactivar temporalmente edición en Fin para evitar bucles infinitos
+                celdas[3].removeAttribute("contenteditable");
+
+                const fechaInicioTxt = celdas[1].textContent.trim();
+                const duracionTxt = celdas[2].textContent.trim();
+                let fechaFinTxt = celdas[3].textContent.trim();
+
+                const fInicio = parseFecha(fechaInicioTxt);
+                let fFin = parseFecha(fechaFinTxt);
+                const duracion = parseInt(duracionTxt, 10);
+
+                // Limpiar estilos previos en las columnas de las semanas
+                for (let i = 4; i < celdas.length; i++) {
+                    celdas[i].innerHTML = "";
+                    celdas[i].className = "";
+                }
+
+                if (!fInicio) {
+                    celdas[3].setAttribute("contenteditable", "true");
+                    return;
+                }
+
+                // Caso 1: Tiene inicio y duración -> Calcula el fin (sin fin de semana)
+                if (!isNaN(duracion) && duracion > 0) {
+                    fFin = calcularFechaFin(fInicio, duracion);
+                    const finFormateado = formatearFecha(fFin);
+                    if (celdas[3].textContent !== finFormateado) {
+                        celdas[3].textContent = finFormateado;
+                        saveTable();
+                    }
+                } else {
+                    fFin = parseFecha(celdas[3].textContent.trim());
+                }
+
+                // --- CALENDARIO ANUAL FIJO (52 SEMANAS) ---
+                // Definimos el día base como el 1 de Enero del año correspondiente a la fecha de inicio
+                const añoProyecto = fInicio.getFullYear();
+                const inicioAno = new Date(añoProyecto, 0, 1); // 1 de Enero
+
+                for (let i = 4; i < celdas.length; i++) {
+                    const numSemana = i - 4; // Semana 0, Semana 1, Semana 2... hasta 51
+
+                    // Calculamos los rangos exactos de tiempo de esa semana del año
+                    const inicioSemana = new Date(inicioAno.getTime() + numSemana * 7 * 24 * 60 * 60 * 1000);
+                    const finSemana = new Date(inicioSemana.getTime() + 6 * 24 * 60 * 60 * 1000);
+
+                    inicioSemana.setHours(0, 0, 0, 0);
+                    finSemana.setHours(23, 59, 59, 999);
+
+                    if (fInicio && !fFin) {
+                        // Caso 2: Solo tiene fecha de inicio -> Muestra un punto en la semana que caiga
+                        if (fInicio >= inicioSemana && fInicio <= finSemana) {
+                            celdas[i].innerHTML = '<span class="gantt-dot">•</span>';
+                        }
+                    } else if (fInicio && fFin) {
+                        // Caso 3: Tiene inicio y fin -> Muestra barra entre las semanas correspondientes
+                        const tInicio = new Date(fInicio).setHours(0, 0, 0, 0);
+                        const tFin = new Date(fFin).setHours(23, 59, 59, 999);
+
+                        // Intersección de rangos cronológicos
+                        if (tInicio <= finSemana && tFin >= inicioSemana) {
+                            celdas[i].classList.add("gantt-bar");
+                        }
+                    }
+                }
+
+                celdas[3].setAttribute("contenteditable", "true");
+            });
+        }
+
+        // --- GESTIÓN DE COLUMNAS Y FILAS ---
 
         function agregarColumna(tabla, textoCabecera = "Nueva Col") {
             if (!tabla) return;
@@ -49,21 +159,14 @@
             }
 
             const filasCuerpo = tabla.querySelectorAll('tbody tr');
+            filasCuerpo.forEach(fila => {
+                const nuevaCeldaTd = fila.insertCell(-1);
+                nuevaCeldaTd.textContent = "";
+                nuevaCeldaTd.contentEditable = "true";
+            });
 
-            if (filasCuerpo.length > 0) {
-                filasCuerpo.forEach(fila => {
-                    const nuevaCeldaTd = fila.insertCell(-1);
-                    nuevaCeldaTd.textContent = "Dato";
-                    nuevaCeldaTd.contentEditable = "true";
-                });
-            } else {
-                for (let i = 1; i < tabla.rows.length; i++) {
-                    const nuevaCeldaTd = tabla.rows[i].insertCell(-1);
-                    nuevaCeldaTd.textContent = "Dato";
-                    nuevaCeldaTd.contentEditable = "true";
-                }
-            }
-            saveTable(); // Guarda al añadir columna
+            saveTable();
+            updateTable();
         }
 
         function agregarFila(tabla) {
@@ -73,29 +176,19 @@
             var tbody = tabla.querySelector("tbody");
             if (!tbody) return;
 
-            var new_row = null;
+            var new_row = document.createElement("tr");
             var header_row = thead.querySelector("tr:last-child");
-            var ultimaFila = tbody.querySelector("tr:last-child");
+            var header_len = header_row.childElementCount;
 
-            if (ultimaFila) {
-                new_row = ultimaFila.cloneNode(true);
-                var celdas = new_row.querySelectorAll("td");
-                celdas.forEach(function (td) {
-                    td.textContent = "";
-                    td.contentEditable = "true";
-                });
-            } else {
-                new_row = document.createElement("tr");
-                var header_len = header_row.childElementCount;
-                for (var i = 0; i < header_len; i++) {
-                    var td = document.createElement("td");
-                    td.contentEditable = "true";
-                    new_row.appendChild(td);
-                }
+            for (var i = 0; i < header_len; i++) {
+                var td = document.createElement("td");
+                td.contentEditable = "true";
+                new_row.appendChild(td);
             }
 
             tbody.appendChild(new_row);
-            saveTable(); // Guarda al añadir fila
+            saveTable();
+            updateTable();
         }
 
         function onAddRowClick() {
@@ -103,18 +196,17 @@
             agregarFila(table);
         }
 
-        // --- NUEVAS FUNCIONES PARA LOCALSTORAGE ---
+        // --- GESTIÓN DE LOCALSTORAGE ---
 
         function saveTable() {
             const table = document.querySelector("table");
-            
-            // 1. Guardar Cabeceras
+            if (!table) return;
+
             const headers = [];
             table.querySelectorAll("thead td, thead th").forEach(cell => {
                 headers.push(cell.textContent);
             });
 
-            // 2. Guardar Filas del cuerpo
             const rowsData = [];
             table.querySelectorAll("tbody tr").forEach(row => {
                 const rowCells = [];
@@ -130,23 +222,20 @@
 
         function loadTable() {
             const savedState = localStorage.getItem("ganttTableState");
-            if (!savedState) return false; // Retorna falso si no hay datos previos
+            if (!savedState) return false;
 
             const { headers, rowsData } = JSON.parse(savedState);
             const table = document.querySelector("table");
             const theadRow = table.querySelector("thead tr");
             const tbody = table.querySelector("tbody");
 
-            // 1. Restaurar Cabeceras
             theadRow.innerHTML = "";
             headers.forEach((headerText, index) => {
-                // Las primeras 4 columnas usan 'td' según tu HTML original, las nuevas usan 'th'
                 const cell = document.createElement(index < 4 ? "td" : "th");
                 cell.textContent = headerText;
                 theadRow.appendChild(cell);
             });
 
-            // 2. Restaurar Filas y Celdas
             tbody.innerHTML = "";
             rowsData.forEach(rowData => {
                 const tr = document.createElement("tr");
@@ -164,40 +253,53 @@
 
         function initTable() {
             var table = document.querySelector("table");
-            
-            // Intenta cargar desde localStorage, si no existe, crea la tabla inicial
+
             if (!loadTable()) {
-                for (var i = 1; i < 55; i++) {
+                // Inicializa las 52 semanas del año reglamentarias
+                for (var i = 1; i <= 52; i++) {
                     agregarColumna(table, `Semana ${i}`);
                 }
             }
+
+            updateTable();
+            onCambiosTabla();
+        }
+
+        // --- OBSERVADOR EN TIEMPO REAL ---
+
+        function onCambiosTabla() {
+            const table = document.querySelector("table tbody");
+            if (!table) return;
+
+            const observer = new MutationObserver((mutations) => {
+                observer.disconnect();
+                updateTable();
+                saveTable();
+                reconectar();
+            });
+
+            function reconectar() {
+                observer.observe(table, {
+                    characterData: true,
+                    subtree: true,
+                    childList: true
+                });
+            }
+
+            reconectar();
         }
 
         // --- EVENTOS ---
 
         document.querySelector("button#add-row").addEventListener("click", onAddRowClick);
-        
-        // Evento para el botón de agregar columna manual
-        document.querySelector("#add-column").addEventListener("click", function() {
-            var table = document.querySelector("table");
-            var input = document.querySelector("#col-header");
-            agregarColumna(table, input.value);
-        });
 
-        // Guardar automáticamente cuando el usuario edita cualquier celda
-        document.querySelector("table").addEventListener("input", function(e) {
-            if (e.target.getAttribute("contenteditable") === "true") {
-                saveTable();
-            }
-        });
-
-        // Botón para limpiar los datos guardados
-        document.querySelector("#clear-storage").addEventListener("click", function() {
+        document.querySelector("#clear-storage").addEventListener("click", function () {
             localStorage.removeItem("ganttTableState");
             location.reload();
         });
 
         initTable();
+
     </script>
 </body>
 
