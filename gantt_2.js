@@ -35,6 +35,31 @@ function calcularFechaFin(fechaInicio, diasDuracion) {
     return fecha;
 }
 
+function scrollASemana(row) {
+    const celdas = row.querySelectorAll("td");
+    if (celdas.length < 5) return;
+
+    const fechaInicio = parseFecha(celdas[1].textContent.trim());
+    if (!fechaInicio) return;
+
+    const inicioAno = new Date(fechaInicio.getFullYear(), 0, 1);
+
+    const diferenciaDias = Math.floor(
+        (fechaInicio - inicioAno) / (1000 * 60 * 60 * 24)
+    );
+
+    const semana = Math.floor(diferenciaDias / 7);
+
+    const celdaSemana = celdas[4 + semana];
+    if (!celdaSemana) return;
+
+    celdaSemana.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest"
+    });
+}
+
 function updateTable() {
     const table = document.querySelector("table");
     if (!table) return;
@@ -110,6 +135,8 @@ function updateTable() {
                 }
             }
         }
+        
+        row.addEventListener("click", () => scrollASemana(row));
 
         celdas[3].setAttribute("contenteditable", "true");
     });
