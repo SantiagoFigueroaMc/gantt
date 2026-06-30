@@ -1,0 +1,80 @@
+.actions-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+
+/* Contenedor obligatorio para el scroll */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+}
+
+/* Estructura fija de la tabla */
+table {
+    table-layout: fixed;
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate; /* Obligatorio para sticky */
+    border-spacing: 0;
+}
+
+/* Estilos base de celdas y bordes */
+th, td {
+    padding: 12px;
+    background-color: #ffffff; /* Fondo sólido obligatorio */
+    border-right: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    box-sizing: border-box;
+}
+tr:first-child th { border-top: 1px solid #ccc; }
+th:first-child, td:first-child { border-left: 1px solid #ccc; }
+
+/* --- CONFIGURACIÓN DE LAS 4 COLUMNAS FIJAS --- */
+
+/* 1. Definir el mismo ancho para las 4 columnas fijas */
+th:nth-child(-n+4), 
+td:nth-child(-n+4) {
+    position: sticky;
+    width: 120px; /* Ajusta este valor si quieres celdas más anchas */
+    z-index: 2;
+}
+
+/* 2. Posicionar cada columna según el acumulado de su ancho (0, 120, 240, 360) */
+th:nth-child(1), td:nth-child(1) { left: 0px; }
+th:nth-child(2), td:nth-child(2) { left: 120px; }
+th:nth-child(3), td:nth-child(3) { left: 240px; }
+th:nth-child(4), td:nth-child(4) { left: 360px; }
+
+/* 3. Definir el ancho de las demás columnas móviles (5 en adelante) */
+th:nth-child(n+5), 
+td:nth-child(n+5) {
+    width: 150px; 
+}
+
+/* --- DETALLES VISUALES Y CAPAS --- */
+
+/* Sombra en la cuarta columna para marcar la separación al hacer scroll */
+th:nth-child(4)::after, 
+td:nth-child(4)::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: -5px;
+    bottom: 0;
+    width: 5px;
+    background: linear-gradient(to right, rgba(0,0,0,0.15), rgba(0,0,0,0));
+    pointer-events: none;
+}
+
+/* Estilos del encabezado (Th) */
+th {
+    background-color: #007BFF;
+    color: white;
+}
+
+/* Asegurar que las cabeceras fijas queden siempre arriba de las celdas fijas */
+th:nth-child(-n+4) {
+    z-index: 3; 
+}

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gantt 2</title>
+    <link rel="stylesheet" href="gantt_2.css">
+</head>
+
+<body>
+    <div class="actions-container">
+        <button id="add-row">Agregar fila</button>
+        <div>
+            <input type="text" id="col-header" value="Semana 1">
+            <button id="add-column">Agregar columna</button>
+        </div>
+        <!-- Botón opcional por si quieres limpieza manual -->
+        <button id="clear-storage" style="background-color: #ff4d4d; color: white;">Borrar datos</button>
+    </div>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <td>Nombre</td>
+                    <td>Inicio</td>
+                    <td>Duración</td>
+                    <td>Fin</td>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function updateTable(table) {
+            var rows = table.querySelector("tbody").querySelectorAll("tr");
+        }
+
+        function agregarColumna(tabla, textoCabecera = "Nueva Col") {
+            if (!tabla) return;
+
+            const cabecera = tabla.querySelector('thead tr') || tabla.rows[0];
+            if (cabecera) {
+                const nuevaCeldaTh = document.createElement('th');
+                nuevaCeldaTh.textContent = textoCabecera;
+                cabecera.appendChild(nuevaCeldaTh);
+            }
+
+            const filasCuerpo = tabla.querySelectorAll('tbody tr');
+
+            if (filasCuerpo.length > 0) {
+                filasCuerpo.forEach(fila => {
+                    const nuevaCeldaTd = fila.insertCell(-1);
+                    nuevaCeldaTd.textContent = "Dato";
+                    nuevaCeldaTd.contentEditable = "true";
+                });
+            } else {
+                for (let i = 1; i < tabla.rows.length; i++) {
+                    const nuevaCeldaTd = tabla.rows[i].insertCell(-1);
+                    nuevaCeldaTd.textContent = "Dato";
+                    nuevaCeldaTd.contentEditable = "true";
+                }
+            }
+            saveTable(); // Guarda al añadir columna
+        }
+
+        function agregarFila(tabla) {
+            if (!tabla) return;
+
+            var thead = tabla.querySelector("thead");
+            var tbody = tabla.querySelector("tbody");
+            if (!tbody) return;
+
+            var new_row = null;
+            var header_row = thead.querySelector("tr:last-child");
+            var ultimaFila = tbody.querySelector("tr:last-child");
+
+            if (ultimaFila) {
+                new_row = ultimaFila.cloneNode(true);
+                var celdas = new_row.querySelectorAll("td");
+                celdas.forEach(function (td) {
+                    td.textContent = "";
+                    td.contentEditable = "true";
+                });
+            } else {
+                new_row = document.createElement("tr");
+                var header_len = header_row.childElementCount;
+                for (var i = 0; i < header_len; i++) {
+                    var td = document.createElement("td");
+                    td.contentEditable = "true";
+                    new_row.appendChild(td);
+                }
+            }
+
+            tbody.appendChild(new_row);
+            saveTable(); // Guarda al añadir fila
+        }
+
+        function onAddRowClick() {
+            var table = document.querySelector("table");
+            agregarFila(table);
+        }
+
+        // --- NUEVAS FUNCIONES PARA LOCALSTORAGE ---
+
+        function saveTable() {
+            const table = document.querySelector("table");
+            
+            // 1. Guardar Cabeceras
+            const headers = [];
+            table.querySelectorAll("thead td, thead th").forEach(cell => {
+                headers.push(cell.textContent);
+            });
+
+            // 2. Guardar Filas del cuerpo
+            const rowsData = [];
+            table.querySelectorAll("tbody tr").forEach(row => {
+                const rowCells = [];
+                row.querySelectorAll("td").forEach(cell => {
+                    rowCells.push(cell.textContent);
+                });
+                rowsData.push(rowCells);
+            });
+
+            const tableState = { headers, rowsData };
+            localStorage.setItem("ganttTableState", JSON.stringify(tableState));
+        }
+
+        function loadTable() {
+            const savedState = localStorage.getItem("ganttTableState");
+            if (!savedState) return false; // Retorna falso si no hay datos previos
+
+            const { headers, rowsData } = JSON.parse(savedState);
+            const table = document.querySelector("table");
+            const theadRow = table.querySelector("thead tr");
+            const tbody = table.querySelector("tbody");
+
+            // 1. Restaurar Cabeceras
+            theadRow.innerHTML = "";
+            headers.forEach((headerText, index) => {
+                // Las primeras 4 columnas usan 'td' según tu HTML original, las nuevas usan 'th'
+                const cell = document.createElement(index < 4 ? "td" : "th");
+                cell.textContent = headerText;
+                theadRow.appendChild(cell);
+            });
+
+            // 2. Restaurar Filas y Celdas
+            tbody.innerHTML = "";
+            rowsData.forEach(rowData => {
+                const tr = document.createElement("tr");
+                rowData.forEach(cellText => {
+                    const td = document.createElement("td");
+                    td.textContent = cellText;
+                    td.contentEditable = "true";
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+
+            return true;
+        }
+
+        function initTable() {
+            var table = document.querySelector("table");
+            
+            // Intenta cargar desde localStorage, si no existe, crea la tabla inicial
+            if (!loadTable()) {
+                for (var i = 1; i < 55; i++) {
+                    agregarColumna(table, `Semana ${i}`);
+                }
+            }
+        }
+
+        // --- EVENTOS ---
+
+        document.querySelector("button#add-row").addEventListener("click", onAddRowClick);
+        
+        // Evento para el botón de agregar columna manual
+        document.querySelector("#add-column").addEventListener("click", function() {
+            var table = document.querySelector("table");
+            var input = document.querySelector("#col-header");
+            agregarColumna(table, input.value);
+        });
+
+        // Guardar automáticamente cuando el usuario edita cualquier celda
+        document.querySelector("table").addEventListener("input", function(e) {
+            if (e.target.getAttribute("contenteditable") === "true") {
+                saveTable();
+            }
+        });
+
+        // Botón para limpiar los datos guardados
+        document.querySelector("#clear-storage").addEventListener("click", function() {
+            localStorage.removeItem("ganttTableState");
+            location.reload();
+        });
+
+        initTable();
+    </script>
+</body>
+
+</html>
